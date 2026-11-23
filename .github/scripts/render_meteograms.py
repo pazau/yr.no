@@ -27,7 +27,7 @@ URLS = [
 # Time runs left to right, so a smaller "right" value shows fewer hours, larger.
 # If the cut-off edge slices through labels, adjust and re-run the workflow.
 # ---------------------------------------------------------------------------
-DEFAULT_CROP = (0.0, 0.0, 0.40, 1.0)
+DEFAULT_CROP = (0.0, 0.0, 0.60, 1.0)
 CROPS = {          # per-image overrides, keyed by 1, 2, 3
     # 1: (0.0, 0.0, 0.35, 1.0),
 }
