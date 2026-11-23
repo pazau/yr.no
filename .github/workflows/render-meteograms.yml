@@ -27,6 +27,15 @@ jobs:
       - name: Render SVGs to PNGs
         run: python3 .github/scripts/render_meteograms.py
 
+      # Full renders with the cropped area outlined in red, for tuning the crop.
+      - name: Upload previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: previews
+          path: /tmp/preview_*.png
+          if-no-files-found: ignore
+
       # Runs even if one image failed, so the others still get updated.
       - name: Commit changed images
         if: always()
