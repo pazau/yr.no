@@ -1,0 +1,46 @@
+name: Render meteograms for ESP32
+
+on:
+  schedule:
+    - cron: "7 * * * *"      # hourly
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: render-meteograms
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install renderer and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin python3-pil fonts-dejavu-core fonts-liberation
+
+      - name: Render SVGs to PNGs
+        run: python3 .github/scripts/render_meteograms.py
+
+      # Runs even if one image failed, so the others still get updated.
+      - name: Commit changed images
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add esp32
+          if git diff --cached --quiet; then
+            echo "No image changes."
+          else
+            git commit -m "Update meteogram images"
+            git push
+            # Pushes made with GITHUB_TOKEN may not trigger the Pages build by themselves.
+            gh api --method POST "/repos/${GITHUB_REPOSITORY}/pages/builds" || true
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
