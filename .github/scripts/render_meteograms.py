@@ -5,8 +5,9 @@
 Output: esp32/meteogram1.png, esp32/meteogram2.png, esp32/meteogram3.png
 (served by GitHub Pages at https://<user>.github.io/esp32/meteogramN.png)
 
-Also writes /tmp/preview_N.png (the full render with the crop box in red) so you can
-see what was cut off. The workflow uploads these as a downloadable artifact.
+While tuning, it also writes esp32/preview_N.png (the full render with the crop box in
+red). When the crop's right edge equals TUNED_RIGHT, no previews are made and any old
+ones are deleted. Change the right edge to another value to get previews again.
 """
 import os
 import subprocess
@@ -21,16 +22,14 @@ URLS = [
 ]
 
 # ---------------------------------------------------------------------------
-# TUNE THESE.
 # CROP = (left, top, right, bottom) as fractions of the full rendered image.
-#   (0.0, 0.0, 0.40, 1.0) = keep the left 40 % of the width, full height.
-# Time runs left to right, so a smaller "right" value shows fewer hours, larger.
-# If the cut-off edge slices through labels, adjust and re-run the workflow.
+#   (0.0, 0.0, 0.60, 1.0) = keep the left 60 % of the width, full height.
 # ---------------------------------------------------------------------------
 DEFAULT_CROP = (0.0, 0.0, 0.60, 1.0)
 CROPS = {          # per-image overrides, keyed by 1, 2, 3
-    # 1: (0.0, 0.0, 0.35, 1.0),
+    # 1: (0.0, 0.0, 0.55, 1.0),
 }
+TUNED_RIGHT = 0.60  # a crop with this right edge is considered final: no previews
 
 W, H = 320, 240
 RENDER_WIDTH = 2400         # render big, crop, then downscale: sharper text
@@ -58,11 +57,16 @@ def render(i: int, url: str) -> None:
     left, top, right, bottom = CROPS.get(i, DEFAULT_CROP)
     box = (round(left * fw), round(top * fh), round(right * fw), round(bottom * fh))
 
-    # Preview: the whole render with the kept region outlined in red.
-    preview = full.copy()
-    ImageDraw.Draw(preview).rectangle(box, outline=(255, 0, 0), width=6)
-    preview.thumbnail((1600, 1600), Image.LANCZOS)
-    preview.save(f"/tmp/preview_{i}.png")
+    preview_path = os.path.join(OUT_DIR, f"preview_{i}.png")
+    if abs(right - TUNED_RIGHT) < 1e-9:
+        # Final crop: no preview, and remove one left over from earlier tuning.
+        if os.path.exists(preview_path):
+            os.remove(preview_path)
+    else:
+        preview = full.copy()
+        ImageDraw.Draw(preview).rectangle(box, outline=(255, 0, 0), width=6)
+        preview.thumbnail((1600, 1600), Image.LANCZOS)
+        preview.save(preview_path, optimize=True)
 
     img = full.crop(box)
     img.thumbnail((W, H), Image.LANCZOS)          # fit inside 320x240, keep aspect
