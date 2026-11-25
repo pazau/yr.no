@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Download the yr.no meteogram SVGs, crop each to the next day or two and render
-320x240 PNGs for the ESP32.
+320x240 8-bit BMP files for the ESP32 (it streams them straight to the screen, no decoder).
 
-Output: esp32/meteogram1.png, esp32/meteogram2.png, esp32/meteogram3.png
-(served by GitHub Pages at https://<user>.github.io/esp32/meteogramN.png)
+Output: esp32/meteogram1.bmp, esp32/meteogram2.bmp, esp32/meteogram3.bmp
+(served by GitHub Pages at https://<user>.github.io/<repo path>/esp32/meteogramN.bmp)
 
 While tuning, it also writes esp32/preview_N.png (the full render with the crop box in
 red). When the crop's right edge equals TUNED_RIGHT, no previews are made and any old
@@ -33,7 +33,6 @@ TUNED_RIGHT = 0.60  # a crop with this right edge is considered final: no previe
 
 W, H = 320, 240
 RENDER_WIDTH = 2400         # render big, crop, then downscale: sharper text
-MAX_BYTES = 45_000          # the ESP32 firmware accepts up to 48 KB
 OUT_DIR = "esp32"
 UA = "pazau-esp32-display (https://github.com/pazau/pazau.github.io)"
 
@@ -73,15 +72,13 @@ def render(i: int, url: str) -> None:
     canvas = Image.new("RGB", (W, H), "white")
     canvas.paste(img, ((W - img.width) // 2, (H - img.height) // 2))
 
-    out = os.path.join(OUT_DIR, f"meteogram{i}.png")
-    for colors in (256, 128, 64, 32):
-        pal = canvas.quantize(colors=colors, method=Image.Quantize.MEDIANCUT,
-                              dither=Image.Dither.NONE)
-        pal.save(out, optimize=True)              # non-interlaced palette PNG
-        size = os.path.getsize(out)
-        if size <= MAX_BYTES:
-            break
-    print(f"{out}: {size} bytes, {colors} colours | full render {fw}x{fh}, "
+    out = os.path.join(OUT_DIR, f"meteogram{i}.bmp")
+    pal = canvas.quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+    pal.save(out, format="BMP")                   # uncompressed 8-bit palette BMP, ~77 KB
+    old_png = os.path.join(OUT_DIR, f"meteogram{i}.png")
+    if os.path.exists(old_png):
+        os.remove(old_png)                        # the old PNG format is no longer used
+    print(f"{out}: {os.path.getsize(out)} bytes | full render {fw}x{fh}, "
           f"crop box {box} -> shown at {img.width}x{img.height}")
 
 
